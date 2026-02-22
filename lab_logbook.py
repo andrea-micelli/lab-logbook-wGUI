@@ -12,13 +12,15 @@ import subprocess
 import sys
 from pathlib import Path
 import re
+from __version__ import version
 
 
 class LabLogbook:
     def __init__(self, root):
         self.root = root
-        self.root.title("Laboratory Logbook")
+        self.root.title("Laboratory Logbook v" + version)
         self.root.geometry("1200x800")
+        self.root.option_add("*Font", "{\"Segoe UI\"} 9")
         
         # Configurazione percorsi
         self.config_file = "logbook_config.json"
@@ -44,6 +46,7 @@ class LabLogbook:
         # Liste per autocomplete (popolate dopo scan)
         self.existing_samples = []
         self.all_categories = list(self.categories)
+        self._tree_row_tags = set()
         
         self.create_widgets()
         self.scan_and_load_entries()
@@ -141,20 +144,24 @@ class LabLogbook:
         menubar.add_cascade(label="Aiuto", menu=help_menu)
         help_menu.add_command(label="Informazioni", command=self.show_about)
         
-        # Frame principale diviso in due colonne
-        main_frame = ttk.Frame(self.root, padding="10")
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        
+        # Frame principale con PanedWindow per resize colonna sinistra
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(1, weight=1)
-        main_frame.rowconfigure(0, weight=1)
-        
+
+        outer_frame = ttk.Frame(self.root, padding="10")
+        outer_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        outer_frame.columnconfigure(0, weight=1)
+        outer_frame.rowconfigure(0, weight=1)
+
+        paned = tk.PanedWindow(outer_frame, orient=tk.HORIZONTAL, sashrelief=tk.RAISED,
+                               sashwidth=6, bg="#cccccc")
+        paned.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
         # LEFT PANEL - Lista entrate e filtri
-        left_panel = ttk.Frame(main_frame)
-        left_panel.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 5))
+        left_panel = ttk.Frame(paned)
         left_panel.columnconfigure(0, weight=1)
         left_panel.rowconfigure(2, weight=1)
+        paned.add(left_panel, minsize=200)
         
         # Filtri
         filter_frame = ttk.LabelFrame(left_panel, text="Filtri", padding="5")
@@ -197,6 +204,9 @@ class LabLogbook:
         
         # Treeview per le entrate
         columns = ("Data", "Campione", "Categoria")
+        style = ttk.Style()
+        style.configure("Treeview", rowheight=36, font=("Segoe UI", 9))
+        style.configure("Treeview.Heading", font=("Segoe UI", 9, "bold"))
         self.tree = ttk.Treeview(list_frame, columns=columns, show="tree headings", selectmode="browse")
         
         self.tree.heading("#0", text="ID")
@@ -217,11 +227,11 @@ class LabLogbook:
         self.tree.bind("<<TreeviewSelect>>", self.on_select_entry)
         
         # RIGHT PANEL - Dettagli entrata
-        right_panel = ttk.Frame(main_frame)
-        right_panel.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S))
+        right_panel = ttk.Frame(paned)
         right_panel.columnconfigure(0, weight=1)
-        right_panel.rowconfigure(1, weight=1)
-        
+        right_panel.rowconfigure(0, weight=1)
+        paned.add(right_panel, minsize=400)
+
         # Form per nuova entrata / visualizzazione
         self.form_frame = ttk.LabelFrame(right_panel, text="Dettagli Entrata", padding="10")
         self.form_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
@@ -273,20 +283,29 @@ class LabLogbook:
         text_frame.rowconfigure(0, weight=1)
         self.form_frame.rowconfigure(row, weight=1)
         
-        self.entry_description = tk.Text(text_frame, height=10, wrap=tk.WORD, font=("Arial", 10))
+        self.entry_description = tk.Text(text_frame, height=1, wrap=tk.WORD, font=("Segoe UI", 9))
         self.entry_description.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         desc_scrollbar = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=self.entry_description.yview)
         desc_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
         self.entry_description.configure(yscrollcommand=desc_scrollbar.set)
         
-        # Scorciatoie da tastiera per la formattazione
-        self.entry_description.bind("<Control-b>", lambda e: self.toggle_bold() or "break")
-        self.entry_description.bind("<Control-B>", lambda e: self.toggle_bold() or "break")
-        self.entry_description.bind("<Control-r>", lambda e: self.toggle_red() or "break")
-        self.entry_description.bind("<Control-R>", lambda e: self.toggle_red() or "break")
+        # Configurazione tag per formattazione
+        self.entry_description.tag_configure("bold", font=("Segoe UI", 9, "bold"))
         self.entry_description.tag_configure("red", foreground="red")
-        self.entry_description.tag_configure("bold_red", font=("Arial", 10, "bold"), foreground="red")
+        self.entry_description.tag_configure("bold_red", font=("Segoe UI", 9, "bold"), foreground="red")
+
+        # Scorciatoie da tastiera (return "break" previene il comportamento default di tkinter)
+        def _shortcut_bold(e):
+            self.toggle_bold()
+            return "break"
+        def _shortcut_red(e):
+            self.toggle_red()
+            return "break"
+        self.entry_description.bind("<Control-b>", _shortcut_bold)
+        self.entry_description.bind("<Control-B>", _shortcut_bold)
+        self.entry_description.bind("<Control-r>", _shortcut_red)
+        self.entry_description.bind("<Control-R>", _shortcut_red)
         
         # Pulsanti azione
         row += 1
@@ -633,8 +652,9 @@ class LabLogbook:
             
         for idx, entry in enumerate(self.entries):
             date_short = entry["date"].split()[0]
-            self.tree.insert("", tk.END, text=str(idx), 
-                           values=(date_short, entry["sample"], entry["category"]))
+            sample_display = entry["sample"].replace(", ", "\n").replace(",", "\n")
+            self.tree.insert("", tk.END, text=str(idx),
+                           values=(date_short, sample_display, entry["category"]))
                            
     def apply_filters(self):
         """Applica i filtri alla lista delle entrate"""
@@ -660,8 +680,9 @@ class LabLogbook:
             
         for idx, entry in filtered_entries:
             date_short = entry["date"].split()[0]
-            self.tree.insert("", tk.END, text=str(idx), 
-                           values=(date_short, entry["sample"], entry["category"]))
+            sample_display = entry["sample"].replace(", ", "\n").replace(",", "\n")
+            self.tree.insert("", tk.END, text=str(idx),
+                           values=(date_short, sample_display, entry["category"]))
                            
         if not filtered_entries:
             messagebox.showinfo("Filtri", "Nessuna entrata corrisponde ai filtri selezionati")
