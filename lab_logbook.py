@@ -19,6 +19,7 @@ class LabLogbook:
         self.root = root
         self.root.title("Laboratory Logbook")
         self.root.geometry("1200x800")
+        self.root.option_add("*Font", "{\"Segoe UI\"} 9")
         
         # Configurazione percorsi
         self.config_file = "logbook_config.json"
@@ -44,6 +45,7 @@ class LabLogbook:
         # Liste per autocomplete (popolate dopo scan)
         self.existing_samples = []
         self.all_categories = list(self.categories)
+        self._tree_row_tags = set()
         
         self.create_widgets()
         self.scan_and_load_entries()
@@ -201,6 +203,9 @@ class LabLogbook:
         
         # Treeview per le entrate
         columns = ("Data", "Campione", "Categoria")
+        style = ttk.Style()
+        style.configure("Treeview", rowheight=36, font=("Segoe UI", 9))
+        style.configure("Treeview.Heading", font=("Segoe UI", 9, "bold"))
         self.tree = ttk.Treeview(list_frame, columns=columns, show="tree headings", selectmode="browse")
         
         self.tree.heading("#0", text="ID")
@@ -230,7 +235,6 @@ class LabLogbook:
         self.form_frame = ttk.LabelFrame(right_panel, text="Dettagli Entrata", padding="10")
         self.form_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.form_frame.columnconfigure(1, weight=1)
-        self.form_frame.rowconfigure(0, weight=1)  # will be overridden by description row
         
         # Campi del form
         row = 0
@@ -278,7 +282,7 @@ class LabLogbook:
         text_frame.rowconfigure(0, weight=1)
         self.form_frame.rowconfigure(row, weight=1)
         
-        self.entry_description = tk.Text(text_frame, height=1, wrap=tk.WORD, font=("Arial", 10))
+        self.entry_description = tk.Text(text_frame, height=1, wrap=tk.WORD, font=("Segoe UI", 9))
         self.entry_description.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         desc_scrollbar = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=self.entry_description.yview)
@@ -286,9 +290,9 @@ class LabLogbook:
         self.entry_description.configure(yscrollcommand=desc_scrollbar.set)
         
         # Configurazione tag per formattazione
-        self.entry_description.tag_configure("bold", font=("Arial", 10, "bold"))
+        self.entry_description.tag_configure("bold", font=("Segoe UI", 9, "bold"))
         self.entry_description.tag_configure("red", foreground="red")
-        self.entry_description.tag_configure("bold_red", font=("Arial", 10, "bold"), foreground="red")
+        self.entry_description.tag_configure("bold_red", font=("Segoe UI", 9, "bold"), foreground="red")
 
         # Scorciatoie da tastiera (return "break" previene il comportamento default di tkinter)
         def _shortcut_bold(e):
@@ -647,8 +651,9 @@ class LabLogbook:
             
         for idx, entry in enumerate(self.entries):
             date_short = entry["date"].split()[0]
-            self.tree.insert("", tk.END, text=str(idx), 
-                           values=(date_short, entry["sample"], entry["category"]))
+            sample_display = entry["sample"].replace(", ", "\n").replace(",", "\n")
+            self.tree.insert("", tk.END, text=str(idx),
+                           values=(date_short, sample_display, entry["category"]))
                            
     def apply_filters(self):
         """Applica i filtri alla lista delle entrate"""
@@ -674,8 +679,9 @@ class LabLogbook:
             
         for idx, entry in filtered_entries:
             date_short = entry["date"].split()[0]
-            self.tree.insert("", tk.END, text=str(idx), 
-                           values=(date_short, entry["sample"], entry["category"]))
+            sample_display = entry["sample"].replace(", ", "\n").replace(",", "\n")
+            self.tree.insert("", tk.END, text=str(idx),
+                           values=(date_short, sample_display, entry["category"]))
                            
         if not filtered_entries:
             messagebox.showinfo("Filtri", "Nessuna entrata corrisponde ai filtri selezionati")
