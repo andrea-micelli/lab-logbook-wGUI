@@ -1,6 +1,0 @@
-{
-  "date": "2026-02-15 17:35",
-  "sample": "Lab25-456",
-  "category": "Test",
-  "description": "Test di stabilità termica.\n\nCampione esposto a **150°C** per 24h.\n\n**Risultato:**\n- Stabile fino a <<R>>120°C<</R>>\n- Degradazione oltre questa temperatura\n- Vedere grafico TGA nella cartella"
-}
