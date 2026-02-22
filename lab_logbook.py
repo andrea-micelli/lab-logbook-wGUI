@@ -12,12 +12,13 @@ import subprocess
 import sys
 from pathlib import Path
 import re
+from __version__ import version
 
 
 class LabLogbook:
     def __init__(self, root):
         self.root = root
-        self.root.title("Laboratory Logbook")
+        self.root.title("Laboratory Logbook v" + version)
         self.root.geometry("1200x800")
         self.root.option_add("*Font", "{\"Segoe UI\"} 9")
         
