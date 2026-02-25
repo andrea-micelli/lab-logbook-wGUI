@@ -19,7 +19,8 @@ class LabLogbook:
     def __init__(self, root):
         self.root = root
         self.root.title("Laboratory Logbook v" + version)
-        self.root.geometry("1200x800")
+        # 75% di 1536x864 (risoluzione logica con scala 125% su 1920x1080), centrata
+        self.root.geometry("1152x648+192+108")
         self.root.option_add("*Font", "{\"Segoe UI\"} 9")
         
         # Configurazione percorsi
@@ -205,10 +206,8 @@ class LabLogbook:
         style = ttk.Style()
         style.configure("Treeview", rowheight=36, font=("Segoe UI", 9))
         style.configure("Treeview.Heading", font=("Segoe UI", 9, "bold"))
-        self.tree = ttk.Treeview(list_frame, columns=columns, show="tree headings", selectmode="browse")
+        self.tree = ttk.Treeview(list_frame, columns=columns, show="headings", selectmode="browse")
         
-        self.tree.heading("#0", text="ID")
-        self.tree.column("#0", width=50)
         self.tree.heading("Data", text="Data")
         self.tree.column("Data", width=100)
         self.tree.heading("Campione", text="Campione")
