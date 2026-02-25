@@ -86,12 +86,7 @@ class LabLogbook:
 
         # Raccogli valori unici per autocomplete
         self.existing_samples = sorted(set(e["sample"] for e in self.entries if e.get("sample")))
-        existing_cats = sorted(set(e["category"] for e in self.entries if e.get("category")))
-        all_cats = list(self.categories)
-        for cat in existing_cats:
-            if cat not in all_cats:
-                all_cats.append(cat)
-        self.all_categories = sorted(all_cats)
+        self.all_categories = sorted(set(e["category"] for e in self.entries if e.get("category")))
 
         # Aggiorna i combobox se gia' esistono
         if hasattr(self, 'entry_sample'):
@@ -186,15 +181,18 @@ class LabLogbook:
         ttk.Button(filter_buttons, text="Applica Filtri", command=self.apply_filters).pack(side=tk.LEFT, padx=2)
         ttk.Button(filter_buttons, text="Reset", command=self.reset_filters).pack(side=tk.LEFT, padx=2)
         
-        # Pulsanti azione principali (due affiancati)
+        # Pulsanti azione principali
         btn_frame = ttk.Frame(left_panel)
         btn_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 5))
         btn_frame.columnconfigure(0, weight=1)
         btn_frame.columnconfigure(1, weight=1)
+        btn_frame.columnconfigure(2, weight=1)
         ttk.Button(btn_frame, text="+ Nuova Entrata", command=self.new_entry,
                    style="Accent.TButton").grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 2))
         ttk.Button(btn_frame, text="Registra esistente", command=self.register_existing_folder
-                   ).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(2, 0))
+                   ).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(2, 2))
+        ttk.Button(btn_frame, text="Duplica", command=self.duplicate_entry
+                   ).grid(row=0, column=2, sticky=(tk.W, tk.E), padx=(2, 0))
         
         # Lista entrate
         list_frame = ttk.LabelFrame(left_panel, text="Entrate del Logbook", padding="5")
@@ -238,26 +236,27 @@ class LabLogbook:
         self.form_frame.columnconfigure(1, weight=1)
         
         # Campi del form
+        FORM_FONT = ("Segoe UI", 11)
         row = 0
-        ttk.Label(self.form_frame, text="Data:").grid(row=row, column=0, sticky=tk.W, pady=5)
-        self.entry_date = ttk.Entry(self.form_frame, state="readonly")
+        ttk.Label(self.form_frame, text="Data:", font=FORM_FONT).grid(row=row, column=0, sticky=tk.W, pady=5)
+        self.entry_date = ttk.Entry(self.form_frame, state="readonly", font=FORM_FONT)
         self.entry_date.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
         
         row += 1
-        ttk.Label(self.form_frame, text="Campione:").grid(row=row, column=0, sticky=tk.W, pady=5)
-        self.entry_sample = ttk.Combobox(self.form_frame, values=self.existing_samples, state="normal")
+        ttk.Label(self.form_frame, text="Campione:", font=FORM_FONT).grid(row=row, column=0, sticky=tk.W, pady=5)
+        self.entry_sample = ttk.Combobox(self.form_frame, values=self.existing_samples, state="normal", font=FORM_FONT)
         self.entry_sample.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
         self.entry_sample.bind("<KeyRelease>", self._update_sample_autocomplete)
         self.entry_sample.bind("<Down>", lambda e: self.entry_sample.event_generate("<ButtonPress-1>") or "break")
         
         row += 1
-        ttk.Label(self.form_frame, text="Categoria:").grid(row=row, column=0, sticky=tk.W, pady=5)
-        self.entry_category = ttk.Combobox(self.form_frame, values=self.all_categories, state="normal")
+        ttk.Label(self.form_frame, text="Categoria:", font=FORM_FONT).grid(row=row, column=0, sticky=tk.W, pady=5)
+        self.entry_category = ttk.Combobox(self.form_frame, values=self.all_categories, state="normal", font=FORM_FONT)
         self.entry_category.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
         self.entry_category.bind("<Down>", lambda e: self.entry_category.event_generate("<ButtonPress-1>") or "break")
         
         row += 1
-        ttk.Label(self.form_frame, text="Cartella dati:").grid(row=row, column=0, sticky=tk.W, pady=5)
+        ttk.Label(self.form_frame, text="Cartella dati:", font=FORM_FONT).grid(row=row, column=0, sticky=tk.W, pady=5)
         folder_frame = ttk.Frame(self.form_frame)
         folder_frame.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
         folder_frame.columnconfigure(0, weight=1)
@@ -283,7 +282,7 @@ class LabLogbook:
         text_frame.rowconfigure(0, weight=1)
         self.form_frame.rowconfigure(row, weight=1)
         
-        self.entry_description = tk.Text(text_frame, height=1, wrap=tk.WORD, font=("Segoe UI", 9))
+        self.entry_description = tk.Text(text_frame, height=1, wrap=tk.WORD, font=("Segoe UI", 11))
         self.entry_description.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         desc_scrollbar = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=self.entry_description.yview)
@@ -291,9 +290,9 @@ class LabLogbook:
         self.entry_description.configure(yscrollcommand=desc_scrollbar.set)
         
         # Configurazione tag per formattazione
-        self.entry_description.tag_configure("bold", font=("Segoe UI", 9, "bold"))
+        self.entry_description.tag_configure("bold", font=("Segoe UI", 11, "bold"))
         self.entry_description.tag_configure("red", foreground="red")
-        self.entry_description.tag_configure("bold_red", font=("Segoe UI", 9, "bold"), foreground="red")
+        self.entry_description.tag_configure("bold_red", font=("Segoe UI", 11, "bold"), foreground="red")
 
         # Scorciatoie da tastiera (return "break" previene il comportamento default di tkinter)
         def _shortcut_bold(e):
@@ -346,7 +345,6 @@ class LabLogbook:
         self.entry_date.config(state="normal")
         self.entry_date.delete(0, tk.END)
         self.entry_date.insert(0, current_date)
-        self.entry_date.config(state="readonly")
         
         self.entry_sample.set("")
         self.entry_sample.config(values=self.existing_samples)
@@ -358,6 +356,41 @@ class LabLogbook:
         self.entry_description.delete("1.0", tk.END)
         
         self.form_frame.config(text="Nuova Entrata")
+
+    def duplicate_entry(self):
+        """Crea una nuova entrata copiando la descrizione dell'entrata selezionata"""
+        selection = self.tree.selection()
+        if not selection:
+            messagebox.showwarning("Attenzione", "Seleziona un'entrata da duplicare")
+            return
+        
+        item = self.tree.item(selection[0])
+        entry_index = int(item["text"])
+        source_entry = self.entries[entry_index]
+        
+        # Prepara una nuova entrata (come new_entry)
+        self.current_entry_folder = None
+        self.set_edit_mode()
+        
+        current_date = datetime.now().strftime("%Y-%m-%d %H:%M")
+        self.entry_date.config(state="normal")
+        self.entry_date.delete(0, tk.END)
+        self.entry_date.insert(0, current_date)
+        
+        self.entry_sample.set(source_entry["sample"])
+        self.entry_sample.config(values=self.existing_samples)
+        self.entry_category.set(source_entry["category"])
+        
+        self.entry_folder.config(state="normal")
+        self.entry_folder.delete(0, tk.END)
+        self.entry_folder.insert(0, "[Verra' creata automaticamente]")
+        self.entry_folder.config(state="readonly")
+        
+        self.entry_description.config(state="normal")
+        self.entry_description.delete("1.0", tk.END)
+        self.apply_text_from_markers(source_entry["description"])
+        
+        self.form_frame.config(text="Nuova Entrata (duplicata)")
 
     def register_existing_folder(self):
         """Registra una cartella esistente aggiungendo un file data_description"""
@@ -392,7 +425,6 @@ class LabLogbook:
         self.entry_date.config(state="normal")
         self.entry_date.delete(0, tk.END)
         self.entry_date.insert(0, folder_date)
-        self.entry_date.config(state="readonly")
 
         self.entry_sample.set("")
         self.entry_sample.config(values=self.existing_samples)
@@ -418,9 +450,17 @@ class LabLogbook:
         """Salva l'entrata corrente"""
         sample = self.entry_sample.get().strip()
         category = self.entry_category.get().strip()
+        date_str = self.entry_date.get().strip()
         
         if not sample:
             messagebox.showerror("Errore", "Il campo 'Campione' e' obbligatorio")
+            return
+        
+        # Valida formato data
+        try:
+            datetime.strptime(date_str, "%Y-%m-%d %H:%M")
+        except ValueError:
+            messagebox.showerror("Errore", "Formato data non valido. Usa: YYYY-MM-DD HH:MM")
             return
         
         # Se nuova entrata (nessuna cartella pre-esistente), crea la cartella
@@ -441,7 +481,7 @@ class LabLogbook:
         formatted_description = self.get_formatted_text_with_markers()
         
         entry_data = {
-            "date": self.entry_date.get(),
+            "date": date_str,
             "sample": sample,
             "category": category,
             "description": formatted_description
@@ -458,8 +498,6 @@ class LabLogbook:
         self.scan_and_load_entries()
         self.refresh_entries_list()
         self.set_view_mode()
-        
-        messagebox.showinfo("Successo", "Entrata salvata correttamente!")
         
     def cancel_edit(self):
         """Annulla la modifica corrente"""
@@ -486,7 +524,6 @@ class LabLogbook:
         self.entry_date.config(state="normal")
         self.entry_date.delete(0, tk.END)
         self.entry_date.insert(0, entry["date"])
-        self.entry_date.config(state="readonly")
         
         self.entry_sample.set(entry["sample"])
         self.entry_category.set(entry["category"])
