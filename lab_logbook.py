@@ -465,8 +465,8 @@ class LabLogbook:
         
         # Se nuova entrata (nessuna cartella pre-esistente), crea la cartella
         if self.current_entry_folder is None:
-            date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-            folder_name = f"{date_str}_{sample}_{category}".replace(" ", "_")
+            folder_date_prefix = datetime.now().strftime("%Y%m%d_%H%M%S")
+            folder_name = f"{folder_date_prefix}_{sample}_{category}".replace(" ", "_")
             folder_path = os.path.join(self.config["base_data_folder"], folder_name)
             
             try:
