@@ -24,7 +24,8 @@ class LabLogbook:
         self.root.option_add("*Font", "{\"Segoe UI\"} 9")
         
         # Configurazione percorsi
-        self.config_file = "logbook_config.json"
+        _script_dir = os.path.dirname(os.path.abspath(__file__))
+        self.config_file = os.path.join(_script_dir, "logbook_config.json")
         self.data_description_filename = "data_description.json"
         self.load_config()
         
