@@ -95,7 +95,7 @@ class LabLogbook:
         if hasattr(self, 'entry_category'):
             self.entry_category.config(values=self.all_categories)
         if hasattr(self, 'filter_category'):
-            self.filter_category.config(values=["Tutte"] + self.all_categories)
+            self.filter_category.config(values=self.all_categories)
         
     def _scan_folder_recursive(self, folder_path):
         """Scansiona ricorsivamente una cartella per trovare file data_description"""
@@ -173,9 +173,10 @@ class LabLogbook:
         self.filter_text.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=2, padx=(5, 0))
         
         ttk.Label(filter_frame, text="Categoria:").grid(row=2, column=0, sticky=tk.W, pady=2)
-        self.filter_category = ttk.Combobox(filter_frame, values=["Tutte"] + self.all_categories, state="readonly")
-        self.filter_category.set("Tutte")
+        self.filter_category = ttk.Combobox(filter_frame, values=self.all_categories, state="normal")
+        self.filter_category.set("")
         self.filter_category.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=2, padx=(5, 0))
+        self.filter_category.bind("<KeyRelease>", self._update_category_filter_autocomplete)
         
         filter_buttons = ttk.Frame(filter_frame)
         filter_buttons.grid(row=3, column=0, columnspan=2, pady=(5, 0))
@@ -331,6 +332,15 @@ class LabLogbook:
             filtered = self.existing_samples
         self.entry_sample.config(values=filtered)
 
+    def _update_category_filter_autocomplete(self, event=None):
+        """Filtra i suggerimenti del filtro categoria in base al testo digitato"""
+        typed = self.filter_category.get().lower()
+        if typed:
+            filtered = [c for c in self.all_categories if typed in c.lower()]
+        else:
+            filtered = self.all_categories
+        self.filter_category.config(values=filtered)
+
     # ------------------------------------------------------------------ #
     #  Nuova entrata / Registra cartella esistente                        #
     # ------------------------------------------------------------------ #
@@ -464,9 +474,10 @@ class LabLogbook:
         
         # Se nuova entrata (nessuna cartella pre-esistente), crea la cartella
         if self.current_entry_folder is None:
-            folder_date_prefix = datetime.now().strftime("%Y%m%d_%H%M%S")
+            folder_date_prefix = datetime.now().strftime("%Y-%m-%d")
             folder_name = f"{folder_date_prefix}_{sample}_{category}".replace(" ", "_")
-            folder_path = os.path.join(self.config["base_data_folder"], folder_name)
+            default_subfolder = os.path.join(self.config["base_data_folder"], "general")
+            folder_path = os.path.join(default_subfolder, folder_name)
             
             try:
                 os.makedirs(folder_path, exist_ok=True)
@@ -696,7 +707,7 @@ class LabLogbook:
         """Applica i filtri alla lista delle entrate"""
         sample_filter = self.filter_sample.get().strip().lower()
         text_filter = self.filter_text.get().strip().lower()
-        category_filter = self.filter_category.get()
+        category_filter = self.filter_category.get().strip().lower()
         
         for item in self.tree.get_children():
             self.tree.delete(item)
@@ -705,7 +716,7 @@ class LabLogbook:
         for idx, entry in enumerate(self.entries):
             if sample_filter and sample_filter not in entry["sample"].lower():
                 continue
-            if category_filter != "Tutte" and entry["category"] != category_filter:
+            if category_filter and category_filter not in entry["category"].lower():
                 continue
             description_clean = entry["description"]
             description_clean = description_clean.replace(self.BOLD_START, "").replace(self.BOLD_END, "")
@@ -727,7 +738,7 @@ class LabLogbook:
         """Resetta i filtri"""
         self.filter_sample.delete(0, tk.END)
         self.filter_text.delete(0, tk.END)
-        self.filter_category.set("Tutte")
+        self.filter_category.set("")
         self.refresh_entries_list()
         
     def set_edit_mode(self):
