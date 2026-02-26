@@ -94,6 +94,8 @@ class LabLogbook:
             self.entry_sample.config(values=self.existing_samples)
         if hasattr(self, 'entry_category'):
             self.entry_category.config(values=self.all_categories)
+        if hasattr(self, 'filter_sample'):
+            self.filter_sample.config(values=self.existing_samples)
         if hasattr(self, 'filter_category'):
             self.filter_category.config(values=self.all_categories)
         
@@ -156,7 +158,7 @@ class LabLogbook:
         # LEFT PANEL - Lista entrate e filtri
         left_panel = ttk.Frame(paned)
         left_panel.columnconfigure(0, weight=1)
-        left_panel.rowconfigure(2, weight=1)
+        left_panel.rowconfigure(3, weight=1)
         paned.add(left_panel, minsize=200)
         
         # Filtri
@@ -165,8 +167,9 @@ class LabLogbook:
         filter_frame.columnconfigure(1, weight=1)
         
         ttk.Label(filter_frame, text="Campione:").grid(row=0, column=0, sticky=tk.W, pady=2)
-        self.filter_sample = ttk.Entry(filter_frame)
+        self.filter_sample = ttk.Combobox(filter_frame, values=self.existing_samples, state="normal")
         self.filter_sample.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=2, padx=(5, 0))
+        self.filter_sample.bind("<KeyRelease>", self._update_sample_filter_autocomplete)
         
         ttk.Label(filter_frame, text="Ricerca testo:").grid(row=1, column=0, sticky=tk.W, pady=2)
         self.filter_text = ttk.Entry(filter_frame)
@@ -196,9 +199,15 @@ class LabLogbook:
         ttk.Button(btn_frame, text="Duplica", command=self.duplicate_entry
                    ).grid(row=0, column=2, sticky=(tk.W, tk.E), padx=(2, 0))
         
+        # Header lista con pulsante refresh
+        list_header = ttk.Frame(left_panel)
+        list_header.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 2))
+        ttk.Label(list_header, text="Entrate del Logbook").pack(side=tk.LEFT)
+        ttk.Button(list_header, text="\u21bb Refresh", command=self.reload_entries, width=10).pack(side=tk.RIGHT)
+
         # Lista entrate
-        list_frame = ttk.LabelFrame(left_panel, text="Entrate del Logbook", padding="5")
-        list_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        list_frame = ttk.Frame(left_panel, padding="5", relief="groove", borderwidth=1)
+        list_frame.grid(row=3, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         list_frame.columnconfigure(0, weight=1)
         list_frame.rowconfigure(0, weight=1)
         
@@ -255,6 +264,11 @@ class LabLogbook:
         self.entry_category.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
         self.entry_category.bind("<Down>", lambda e: self.entry_category.event_generate("<ButtonPress-1>") or "break")
         
+        row += 1
+        ttk.Label(self.form_frame, text="Titolo:", font=FORM_FONT).grid(row=row, column=0, sticky=tk.W, pady=5)
+        self.entry_title = ttk.Entry(self.form_frame, font=FORM_FONT)
+        self.entry_title.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
+
         row += 1
         ttk.Label(self.form_frame, text="Cartella dati:", font=FORM_FONT).grid(row=row, column=0, sticky=tk.W, pady=5)
         folder_frame = ttk.Frame(self.form_frame)
@@ -341,6 +355,15 @@ class LabLogbook:
             filtered = self.all_categories
         self.filter_category.config(values=filtered)
 
+    def _update_sample_filter_autocomplete(self, event=None):
+        """Filtra i suggerimenti del filtro campione in base al testo digitato"""
+        typed = self.filter_sample.get().lower()
+        if typed:
+            filtered = [s for s in self.existing_samples if typed in s.lower()]
+        else:
+            filtered = self.existing_samples
+        self.filter_sample.config(values=filtered)
+
     # ------------------------------------------------------------------ #
     #  Nuova entrata / Registra cartella esistente                        #
     # ------------------------------------------------------------------ #
@@ -358,6 +381,7 @@ class LabLogbook:
         self.entry_sample.set("")
         self.entry_sample.config(values=self.existing_samples)
         self.entry_category.set("")
+        self.entry_title.delete(0, tk.END)
         self.entry_folder.config(state="normal")
         self.entry_folder.delete(0, tk.END)
         self.entry_folder.insert(0, "[Verra' creata automaticamente]")
@@ -389,6 +413,8 @@ class LabLogbook:
         self.entry_sample.set(source_entry["sample"])
         self.entry_sample.config(values=self.existing_samples)
         self.entry_category.set(source_entry["category"])
+        self.entry_title.delete(0, tk.END)
+        self.entry_title.insert(0, source_entry.get("title", ""))
         
         self.entry_folder.config(state="normal")
         self.entry_folder.delete(0, tk.END)
@@ -444,6 +470,7 @@ class LabLogbook:
         self.entry_folder.insert(0, folder)
         self.entry_folder.config(state="readonly")
 
+        self.entry_title.delete(0, tk.END)
         self.entry_description.config(state="normal")
         self.entry_description.delete("1.0", tk.END)
 
@@ -459,6 +486,7 @@ class LabLogbook:
         """Salva l'entrata corrente"""
         sample = self.entry_sample.get().strip()
         category = self.entry_category.get().strip()
+        title = self.entry_title.get().strip()
         date_str = self.entry_date.get().strip()
         
         if not sample:
@@ -475,7 +503,10 @@ class LabLogbook:
         # Se nuova entrata (nessuna cartella pre-esistente), crea la cartella
         if self.current_entry_folder is None:
             folder_date_prefix = datetime.now().strftime("%Y-%m-%d")
-            folder_name = f"{folder_date_prefix}_{sample}_{category}".replace(" ", "_")
+            parts = [folder_date_prefix, sample, category]
+            if title:
+                parts.append(title)
+            folder_name = "_".join(parts).replace(" ", "_")
             default_subfolder = os.path.join(self.config["base_data_folder"], "general")
             folder_path = os.path.join(default_subfolder, folder_name)
             
@@ -494,6 +525,7 @@ class LabLogbook:
             "date": date_str,
             "sample": sample,
             "category": category,
+            "title": title,
             "description": formatted_description
         }
         
@@ -537,7 +569,9 @@ class LabLogbook:
         
         self.entry_sample.set(entry["sample"])
         self.entry_category.set(entry["category"])
-        
+        self.entry_title.delete(0, tk.END)
+        self.entry_title.insert(0, entry.get("title", ""))
+
         self.entry_folder.config(state="normal")
         self.entry_folder.delete(0, tk.END)
         self.entry_folder.insert(0, entry["folder"])
@@ -736,7 +770,7 @@ class LabLogbook:
             
     def reset_filters(self):
         """Resetta i filtri"""
-        self.filter_sample.delete(0, tk.END)
+        self.filter_sample.set("")
         self.filter_text.delete(0, tk.END)
         self.filter_category.set("")
         self.refresh_entries_list()
@@ -745,6 +779,7 @@ class LabLogbook:
         """Imposta la modalita' di modifica"""
         self.entry_sample.config(state="normal")
         self.entry_category.config(state="normal")
+        self.entry_title.config(state="normal")
         self.entry_description.config(state="normal")
         self.btn_save.config(state="normal")
         self.btn_cancel.config(state="normal")
@@ -763,6 +798,9 @@ class LabLogbook:
         
         self.entry_category.set("")
         self.entry_category.config(state="disabled")
+
+        self.entry_title.delete(0, tk.END)
+        self.entry_title.config(state="disabled")
         
         self.entry_folder.config(state="normal")
         self.entry_folder.delete(0, tk.END)
@@ -780,7 +818,6 @@ class LabLogbook:
         self.scan_and_load_entries()
         self.refresh_entries_list()
         self.set_view_mode()
-        messagebox.showinfo("Ricarica", f"Trovate {len(self.entries)} entrate nel logbook")
     
     def show_settings(self):
         """Mostra la finestra delle impostazioni"""
