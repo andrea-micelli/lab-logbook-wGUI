@@ -213,18 +213,20 @@ class LabLogbook:
         list_frame.rowconfigure(0, weight=1)
         
         # Treeview per le entrate
-        columns = ("Data", "Campione", "Categoria")
+        columns = ("Data", "Campione", "Categoria", "Titolo")
         style = ttk.Style()
         style.configure("Treeview", rowheight=36, font=("Segoe UI", 9))
         style.configure("Treeview.Heading", font=("Segoe UI", 9, "bold"))
         self.tree = ttk.Treeview(list_frame, columns=columns, show="headings", selectmode="browse")
         
         self.tree.heading("Data", text="Data")
-        self.tree.column("Data", width=100)
+        self.tree.column("Data", width=80)
         self.tree.heading("Campione", text="Campione")
-        self.tree.column("Campione", width=100)
+        self.tree.column("Campione", width=80)
         self.tree.heading("Categoria", text="Categoria")
-        self.tree.column("Categoria", width=100)
+        self.tree.column("Categoria", width=80)
+        self.tree.heading("Titolo", text="Titolo")
+        self.tree.column("Titolo", width=120)
         
         self.tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
@@ -263,13 +265,9 @@ class LabLogbook:
         ttk.Label(self.form_frame, text="Categoria:", font=FORM_FONT).grid(row=row, column=0, sticky=tk.W, pady=5)
         self.entry_category = ttk.Combobox(self.form_frame, values=self.all_categories, state="normal", font=FORM_FONT)
         self.entry_category.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
+        self.entry_category.bind("<KeyRelease>", self._update_category_autocomplete)
         self.entry_category.bind("<Down>", lambda e: self.entry_category.event_generate("<ButtonPress-1>") or "break")
         
-        row += 1
-        ttk.Label(self.form_frame, text="Titolo:", font=FORM_FONT).grid(row=row, column=0, sticky=tk.W, pady=5)
-        self.entry_title = ttk.Entry(self.form_frame, font=FORM_FONT)
-        self.entry_title.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
-
         row += 1
         ttk.Label(self.form_frame, text="Cartella dati:", font=FORM_FONT).grid(row=row, column=0, sticky=tk.W, pady=5)
         folder_frame = ttk.Frame(self.form_frame)
@@ -279,6 +277,11 @@ class LabLogbook:
         self.entry_folder.grid(row=0, column=0, sticky=(tk.W, tk.E))
         ttk.Button(folder_frame, text="Apri", command=self.open_folder, width=8).grid(row=0, column=1, padx=(5, 0))
         
+        row += 1
+        ttk.Label(self.form_frame, text="Titolo:", font=FORM_FONT).grid(row=row, column=0, sticky=tk.W, pady=5)
+        self.entry_title = ttk.Entry(self.form_frame, font=("Segoe UI", 11, "bold"))
+        self.entry_title.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
+
         row += 1
         desc_label_frame = ttk.Frame(self.form_frame)
         desc_label_frame.grid(row=row, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 5))
@@ -346,6 +349,15 @@ class LabLogbook:
         else:
             filtered = self.existing_samples
         self.entry_sample.config(values=filtered)
+
+    def _update_category_autocomplete(self, event=None):
+        """Filtra la lista del combobox categoria in base al testo digitato"""
+        typed = self.entry_category.get().lower()
+        if typed:
+            filtered = [c for c in self.all_categories if typed in c.lower()]
+        else:
+            filtered = self.all_categories
+        self.entry_category.config(values=filtered)
 
     def _update_category_filter_autocomplete(self, event=None):
         """Filtra i suggerimenti del filtro categoria in base al testo digitato"""
@@ -736,7 +748,7 @@ class LabLogbook:
             date_short = entry["date"].split()[0]
             sample_display = entry["sample"].replace(", ", "\n").replace(",", "\n")
             self.tree.insert("", tk.END, text=str(idx),
-                           values=(date_short, sample_display, entry["category"]))
+                           values=(date_short, sample_display, entry["category"], entry.get("title", "")))
                            
     def apply_filters(self):
         """Applica i filtri alla lista delle entrate"""
@@ -764,7 +776,7 @@ class LabLogbook:
             date_short = entry["date"].split()[0]
             sample_display = entry["sample"].replace(", ", "\n").replace(",", "\n")
             self.tree.insert("", tk.END, text=str(idx),
-                           values=(date_short, sample_display, entry["category"]))
+                           values=(date_short, sample_display, entry["category"], entry.get("title", "")))
                            
         if not filtered_entries:
             messagebox.showinfo("Filtri", "Nessuna entrata corrisponde ai filtri selezionati")
