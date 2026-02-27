@@ -19,8 +19,7 @@ class LabLogbook:
     def __init__(self, root):
         self.root = root
         self.root.title("Laboratory Logbook v" + version)
-        # 75% di 1536x864 (risoluzione logica con scala 125% su 1920x1080), centrata
-        self.root.geometry("1152x648+192+108")
+        self.root.state("zoomed")  # Fullscreen (maximized) all'avvio
         self.root.option_add("*Font", "{\"Segoe UI\"} 9")
         
         # Configurazione percorsi
@@ -278,16 +277,11 @@ class LabLogbook:
         ttk.Button(folder_frame, text="Apri", command=self.open_folder, width=8).grid(row=0, column=1, padx=(5, 0))
         
         row += 1
-        ttk.Label(self.form_frame, text="Titolo:", font=FORM_FONT).grid(row=row, column=0, sticky=tk.W, pady=5)
-        self.entry_title = ttk.Entry(self.form_frame, font=("Segoe UI", 11, "bold"))
-        self.entry_title.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
-
-        row += 1
         desc_label_frame = ttk.Frame(self.form_frame)
         desc_label_frame.grid(row=row, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 5))
-        ttk.Label(desc_label_frame, text="Descrizione:").pack(side=tk.LEFT)
-        
-        # Pulsanti formattazione
+        # Titolo inline a sinistra (grassetto), pulsanti formattazione a destra
+        self.entry_title = ttk.Entry(desc_label_frame, font=("Segoe UI", 11, "bold"))
+        self.entry_title.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
         format_frame = ttk.Frame(desc_label_frame)
         format_frame.pack(side=tk.RIGHT)
         ttk.Button(format_frame, text="B", command=self.toggle_bold, width=3).pack(side=tk.LEFT, padx=2)
@@ -336,6 +330,16 @@ class LabLogbook:
         self.btn_cancel.pack(side=tk.LEFT, padx=5)
         
         self.set_view_mode()
+
+        # Imposta split 40/60 dopo il rendering
+        self.root.after(100, self._set_paned_split)
+        self._paned = paned
+
+    def _set_paned_split(self):
+        """Imposta la divisione del pannello a 40% sinistra / 60% destra"""
+        total = self._paned.winfo_width()
+        if total > 1:
+            self._paned.sash_place(0, int(total * 0.40), 0)
 
     # ------------------------------------------------------------------ #
     #  Autocomplete campione                                               #
